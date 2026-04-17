@@ -1,9 +1,10 @@
+import os
 import requests
 import yaml
 
 
-TOKEN = "INSERT_DISCORD_TOKEN_HERE"
-APPLICATION_ID = "INSERT_APPLICATION_ID_HERE"
+TOKEN = os.environ.get("DISCORD_TOKEN")
+APPLICATION_ID = os.environ.get("DISCORD_APPLICATION_ID")
 URL = f"https://discord.com/api/v9/applications/{APPLICATION_ID}/commands"
 
 

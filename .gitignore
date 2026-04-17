@@ -3,6 +3,8 @@
 *.d.ts
 node_modules
 .env
+.cursor
+
 
 # CDK asset staging directory
 .cdk.staging
