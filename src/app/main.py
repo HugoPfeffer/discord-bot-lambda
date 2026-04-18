@@ -192,13 +192,14 @@ def _handle_map_toggle(interaction: dict, slug: str) -> dict:
 
     if cycle_completed:
         components = build_dashboard_components(state)
-        components.insert(0, {
+        celebration = {
             "type": 10,
             "content": (
                 f"\U0001f389 All {len(MAP_SLUGS)} maps played \u2014 "
                 f"new cycle started! (cycle #{state['cycle_number']})"
             ),
-        })
+        }
+        components[0]["components"].insert(0, celebration)
         return {
             "type": INTERACTION_CALLBACK_TYPE_UPDATE,
             "data": {"flags": IS_COMPONENTS_V2, "components": components},

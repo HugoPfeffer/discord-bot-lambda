@@ -1,15 +1,22 @@
 active_duty:
   - slug: ancient
     name: Ancient
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_ancient_png.png
   - slug: anubis
     name: Anubis
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_anubis_png.png
   - slug: dust2
     name: Dust II
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_dust2_png.png
   - slug: inferno
     name: Inferno
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_inferno_png.png
   - slug: mirage
     name: Mirage
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_mirage_png.png
   - slug: nuke
     name: Nuke
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_nuke_png.png
   - slug: overpass
     name: Overpass
+    thumb_url: https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_overpass_png.png

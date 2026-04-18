@@ -10,3 +10,4 @@ MAP_POOL = _raw["active_duty"]
 MAP_SLUGS = [m["slug"] for m in MAP_POOL]
 SLUG_TO_NAME = {m["slug"]: m["name"] for m in MAP_POOL}
 NAME_TO_SLUG = {m["name"]: m["slug"] for m in MAP_POOL}
+SLUG_TO_THUMB = {m["slug"]: m["thumb_url"] for m in MAP_POOL}

@@ -1,9 +1,12 @@
-from config import MAP_POOL, SLUG_TO_NAME
+from config import MAP_POOL, SLUG_TO_NAME, SLUG_TO_THUMB
 
 IS_COMPONENTS_V2 = 1 << 15
 
 _BUTTON_STYLE_SUCCESS = 3
 _BUTTON_STYLE_SECONDARY = 2
+
+_ACCENT_COLOR = 0xDE9B35
+_HEADER_ICON = "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/lobby_mapveto.png"
 
 
 def _chunk(items, size=5):
@@ -21,6 +24,20 @@ def _map_button(slug: str, played: bool) -> dict:
     }
 
 
+def _map_gallery(slugs: list[str]) -> dict:
+    """Media Gallery showing map thumbnails. Items don't count toward the 40-component cap."""
+    return {
+        "type": 12,
+        "items": [
+            {
+                "media": {"url": SLUG_TO_THUMB[slug]},
+                "description": SLUG_TO_NAME[slug],
+            }
+            for slug in slugs
+        ],
+    }
+
+
 def build_dashboard_components(state: dict) -> list[dict]:
     played = state.get("played") or set()
     cycle = state.get("cycle_number", 1)
@@ -31,35 +48,51 @@ def build_dashboard_components(state: dict) -> list[dict]:
     num_played = len(played_slugs)
     total = len(MAP_POOL)
 
-    components: list[dict] = [
-        {"type": 10, "content": "\U0001f3af **CS2 Map Night**"},
-        {"type": 10, "content": f"{num_played} of {total} played \u00b7 cycle #{cycle}"},
-        {"type": 14, "divider": True, "spacing": 1},
-    ]
+    inner: list[dict] = []
 
-    components.append({"type": 10, "content": f"**Remaining ({len(remaining_slugs)}):**"})
+    inner.append({
+        "type": 9,
+        "components": [
+            {"type": 10, "content": "# CS2 Map Night"},
+            {"type": 10, "content": f"{num_played} of {total} played \u00b7 cycle #{cycle}"},
+        ],
+        "accessory": {
+            "type": 11,
+            "media": {"url": _HEADER_ICON},
+            "description": "CS2",
+        },
+    })
+
+    inner.append({"type": 14, "divider": True, "spacing": 1})
+
+    inner.append({"type": 10, "content": f"**Remaining ({len(remaining_slugs)}):**"})
     if remaining_slugs:
+        inner.append(_map_gallery(remaining_slugs))
         for row in _chunk(remaining_slugs):
-            components.append({
+            inner.append({
                 "type": 1,
                 "components": [_map_button(s, False) for s in row],
             })
     else:
-        components.append({"type": 10, "content": "*None -- all maps played!*"})
+        inner.append({"type": 10, "content": "*None \u2014 all maps played!*"})
 
-    components.append({"type": 14, "divider": True, "spacing": 1})
+    inner.append({"type": 14, "divider": True, "spacing": 1})
 
-    components.append({"type": 10, "content": f"**Played ({len(played_slugs)}):**"})
+    inner.append({"type": 10, "content": f"**Played ({len(played_slugs)}):**"})
     if played_slugs:
         for row in _chunk(played_slugs):
-            components.append({
+            inner.append({
                 "type": 1,
                 "components": [_map_button(s, True) for s in row],
             })
     else:
-        components.append({"type": 10, "content": "*None yet -- pick a map!*"})
+        inner.append({"type": 10, "content": "*None yet \u2014 pick a map!*"})
 
-    return components
+    return [{
+        "type": 17,
+        "accent_color": _ACCENT_COLOR,
+        "components": inner,
+    }]
 
 
 def dashboard_response(state: dict, response_type: int = 4) -> dict:
