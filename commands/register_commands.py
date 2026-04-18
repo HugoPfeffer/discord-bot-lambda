@@ -21,10 +21,11 @@ with open("discord_commands.yaml", "r") as file:
 commands = yaml.safe_load(yaml_content)
 headers = {"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json"}
 
-for command in commands:
-    response = requests.post(URL, json=command, headers=headers)
-    command_name = command["name"]
-    if response.status_code in (200, 201):
-        print(f"  {command_name}: OK ({response.status_code})")
-    else:
-        print(f"  {command_name}: FAILED ({response.status_code}) {response.text}")
+response = requests.put(URL, json=commands, headers=headers)
+if response.status_code == 200:
+    registered = response.json()
+    for cmd in registered:
+        print(f"  {cmd['name']}: OK")
+    print(f"Synced {len(registered)} commands (stale commands removed)")
+else:
+    print(f"Bulk sync FAILED ({response.status_code}): {response.text}")

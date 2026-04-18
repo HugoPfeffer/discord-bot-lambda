@@ -17,11 +17,6 @@ export class DiscordBotLambdaStack extends cdk.Stack {
       throw new Error("DISCORD_PUBLIC_KEY must be set in .env or environment");
     }
 
-    const discordBotToken = process.env.DISCORD_TOKEN;
-    if (!discordBotToken) {
-      throw new Error("DISCORD_TOKEN must be set in .env or environment");
-    }
-
     const mapTrackerTable = new dynamodb.Table(this, "MapTrackerTable", {
       partitionKey: {
         name: "guild_id",
@@ -41,7 +36,6 @@ export class DiscordBotLambdaStack extends cdk.Stack {
         architecture: lambda.Architecture.X86_64,
         environment: {
           DISCORD_PUBLIC_KEY: discordPublicKey,
-          DISCORD_BOT_TOKEN: discordBotToken,
           MAP_TRACKER_TABLE_NAME: mapTrackerTable.tableName,
         },
       }

@@ -3,7 +3,6 @@ import logging
 import os
 import time
 
-import requests as http_requests
 from flask import Flask, jsonify, request
 from mangum import Mangum
 from asgiref.wsgi import WsgiToAsgi
@@ -11,10 +10,9 @@ from discord_interactions import verify_key_decorator
 
 import db
 from config import SLUG_TO_NAME, MAP_SLUGS
-from dashboard import dashboard_response
+from dashboard import build_dashboard_components, dashboard_response, IS_COMPONENTS_V2
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
-DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 
 INTERACTION_CALLBACK_TYPE_PONG = 1
 INTERACTION_CALLBACK_TYPE_MESSAGE = 4
@@ -58,14 +56,6 @@ def _public_message(content: str) -> dict:
     }
 
 
-def _send_followup(interaction: dict, content: str):
-    """Send a follow-up message via the interaction webhook."""
-    app_id = interaction.get("application_id")
-    token = interaction.get("token")
-    url = f"https://discord.com/api/v10/webhooks/{app_id}/{token}"
-    http_requests.post(url, json={"content": content}, timeout=5)
-
-
 # -- Slash command handlers --------------------------------------------------
 
 def _cmd_dashboard(interaction: dict) -> dict:
@@ -90,13 +80,10 @@ def _cmd_played(interaction: dict) -> dict:
 
     if len(state["played"]) >= len(MAP_SLUGS):
         cycle_num = state["cycle_number"]
-        db.reset_cycle(guild_id)
-        _send_followup(
-            interaction,
-            f"\U0001f389 All {len(MAP_SLUGS)} maps played \u2014 new cycle started! (cycle #{cycle_num + 1})",
-        )
+        state = db.reset_cycle(guild_id)
         return _public_message(
-            f"\u2705 **{name}** marked as played \u2014 that completes the cycle!"
+            f"\u2705 **{name}** marked as played \u2014 that completes the cycle!\n"
+            f"\U0001f389 All {len(MAP_SLUGS)} maps played \u2014 new cycle started! (cycle #{state['cycle_number']})"
         )
 
     return _public_message(f"\u2705 **{name}** marked as played.")
@@ -156,7 +143,6 @@ def _cmd_unmark(interaction: dict) -> dict:
 
 
 def _cmd_reset(interaction: dict) -> dict:
-    guild_id = interaction["guild_id"]
     _log("reset_prompt", interaction)
     return {
         "type": INTERACTION_CALLBACK_TYPE_MESSAGE,
@@ -202,15 +188,21 @@ _COMMAND_HANDLERS = {
 def _handle_map_toggle(interaction: dict, slug: str) -> dict:
     guild_id = interaction["guild_id"]
     state, cycle_completed = db.toggle_map(guild_id, slug)
-    name = SLUG_TO_NAME.get(slug, slug)
     _log("map_toggle", interaction, map=slug, cycle_completed=cycle_completed)
 
     if cycle_completed:
-        completed_cycle = state.get("_completed_cycle", "?")
-        _send_followup(
-            interaction,
-            f"\U0001f389 All {len(MAP_SLUGS)} maps played \u2014 new cycle started! (cycle #{state['cycle_number']})",
-        )
+        components = build_dashboard_components(state)
+        components.insert(0, {
+            "type": 10,
+            "content": (
+                f"\U0001f389 All {len(MAP_SLUGS)} maps played \u2014 "
+                f"new cycle started! (cycle #{state['cycle_number']})"
+            ),
+        })
+        return {
+            "type": INTERACTION_CALLBACK_TYPE_UPDATE,
+            "data": {"flags": IS_COMPONENTS_V2, "components": components},
+        }
 
     return dashboard_response(state, INTERACTION_CALLBACK_TYPE_UPDATE)
 
@@ -223,18 +215,19 @@ def _handle_reset_confirm(interaction: dict, action: str) -> dict:
             "data": {"content": "Reset cancelled.", "components": []},
         }
 
+    if action != "yes":
+        return _ephemeral("Unknown action.")
+
     guild_id = interaction["guild_id"]
     state = db.reset_cycle(guild_id)
     _log("reset_confirmed", interaction)
 
-    _send_followup(
-        interaction,
-        f"\U0001f504 Cycle manually reset \u2014 starting cycle #{state['cycle_number']}.",
-    )
-
     return {
         "type": INTERACTION_CALLBACK_TYPE_UPDATE,
-        "data": {"content": "Cycle reset.", "components": []},
+        "data": {
+            "content": f"\U0001f504 Cycle manually reset \u2014 starting cycle #{state['cycle_number']}.",
+            "components": [],
+        },
     }
 
 

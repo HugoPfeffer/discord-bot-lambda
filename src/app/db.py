@@ -11,6 +11,9 @@ _TABLE_NAME = os.environ.get("MAP_TRACKER_TABLE_NAME", "cs2-map-tracker")
 _dynamodb = boto3.resource("dynamodb")
 _table = _dynamodb.Table(_TABLE_NAME)
 
+_MAX_RETRIES = 2
+
+
 def _default_state():
     return {
         "played": set(),
@@ -50,37 +53,22 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _build_condition(previous_updated_at):
+    if previous_updated_at:
+        return Attr("updated_at").eq(previous_updated_at)
+    return Attr("updated_at").not_exists() | Attr("guild_id").not_exists()
+
+
 def _conditional_put(item: dict, previous_updated_at):
-    """Put with optimistic concurrency on updated_at. Retries once."""
+    """Single-attempt conditional write. Raises on conflict."""
     item["updated_at"] = _now_iso()
-
-    condition = (
-        Attr("updated_at").eq(previous_updated_at)
-        if previous_updated_at
-        else Attr("guild_id").not_exists()
-    )
-
-    for attempt in range(2):
-        try:
-            _table.put_item(Item=item, ConditionExpression=condition)
-            return item
-        except ClientError as e:
-            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
-                raise
-            if attempt == 0:
-                fresh = get_state(item["guild_id"])
-                item["updated_at"] = _now_iso()
-                condition = (
-                    Attr("updated_at").eq(fresh["updated_at"])
-                    if fresh["updated_at"]
-                    else Attr("guild_id").not_exists()
-                )
-            else:
-                raise
+    condition = _build_condition(previous_updated_at)
+    _table.put_item(Item=item, ConditionExpression=condition)
+    return item
 
 
 def _prepare_item(state: dict) -> dict:
-    """Convert state dict to a DynamoDB-safe item."""
+    """Convert state dict to a DynamoDB-safe item (no empty sets)."""
     item = {
         "guild_id": state["guild_id"],
         "played": state["played"] if state["played"] else None,
@@ -97,85 +85,114 @@ def _prepare_item(state: dict) -> dict:
     return item
 
 
-def mark_played(guild_id: str, slug: str) -> dict:
-    state = get_state(guild_id)
-    prev_updated = state["updated_at"]
+def _is_conflict(e: ClientError) -> bool:
+    return e.response["Error"]["Code"] == "ConditionalCheckFailedException"
 
+
+def mark_played(guild_id: str, slug: str) -> dict:
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        if slug in state["played"]:
+            return state
+
+        prev = state["updated_at"]
+        state["played"].add(slug)
+        state["played_order"].append(slug)
+
+        try:
+            item = _prepare_item(state)
+            _conditional_put(item, prev)
+            state["updated_at"] = item["updated_at"]
+            return state
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
+
+    state = get_state(guild_id)
     if slug in state["played"]:
         return state
-
-    state["played"].add(slug)
-    state["played_order"].append(slug)
-
-    item = _prepare_item(state)
-    _conditional_put(item, prev_updated)
-
-    state["updated_at"] = item["updated_at"]
-    return state
+    raise RuntimeError(f"Failed to mark {slug} after {_MAX_RETRIES} retries")
 
 
 def unmark_map(guild_id: str, slug: str) -> dict:
-    state = get_state(guild_id)
-    prev_updated = state["updated_at"]
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        if slug not in state["played"]:
+            return state
 
+        prev = state["updated_at"]
+        state["played"].discard(slug)
+        state["played_order"] = [s for s in state["played_order"] if s != slug]
+
+        try:
+            _conditional_put(_prepare_item(state), prev)
+            return state
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
+
+    state = get_state(guild_id)
     if slug not in state["played"]:
         return state
-
-    state["played"].discard(slug)
-    state["played_order"] = [s for s in state["played_order"] if s != slug]
-
-    item = _prepare_item(state)
-    _conditional_put(item, prev_updated)
-
-    state["updated_at"] = item["updated_at"]
-    return state
+    raise RuntimeError(f"Failed to unmark {slug} after {_MAX_RETRIES} retries")
 
 
 def undo_last(guild_id: str) -> tuple[dict, str | None]:
     """Undo the most recently played map. Returns (state, undone_slug)."""
-    state = get_state(guild_id)
-    prev_updated = state["updated_at"]
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        if not state["played_order"]:
+            return state, None
 
-    if not state["played_order"]:
-        return state, None
+        prev = state["updated_at"]
+        slug = state["played_order"].pop()
+        state["played"].discard(slug)
 
-    slug = state["played_order"].pop()
-    state["played"].discard(slug)
+        try:
+            _conditional_put(_prepare_item(state), prev)
+            return state, slug
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
 
-    item = _prepare_item(state)
-    _conditional_put(item, prev_updated)
-
-    state["updated_at"] = item["updated_at"]
-    return state, slug
+    return get_state(guild_id), None
 
 
 def reset_cycle(guild_id: str) -> dict:
-    state = get_state(guild_id)
-    prev_updated = state["updated_at"]
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        prev = state["updated_at"]
 
-    state["played"] = set()
-    state["played_order"] = []
-    state["cycle_number"] += 1
+        state["played"] = set()
+        state["played_order"] = []
+        state["cycle_number"] += 1
 
-    item = _prepare_item(state)
-    _conditional_put(item, prev_updated)
+        try:
+            _conditional_put(_prepare_item(state), prev)
+            return state
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
 
-    state["updated_at"] = item["updated_at"]
-    return state
+    raise RuntimeError(f"Failed to reset cycle after {_MAX_RETRIES} retries")
 
 
 def save_dashboard_ref(guild_id: str, channel_id: str, message_id: str) -> dict:
-    state = get_state(guild_id)
-    prev_updated = state["updated_at"]
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        prev = state["updated_at"]
 
-    state["dashboard_message_id"] = message_id
-    state["dashboard_channel_id"] = channel_id
+        state["dashboard_message_id"] = message_id
+        state["dashboard_channel_id"] = channel_id
 
-    item = _prepare_item(state)
-    _conditional_put(item, prev_updated)
+        try:
+            _conditional_put(_prepare_item(state), prev)
+            return state
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
 
-    state["updated_at"] = item["updated_at"]
-    return state
+    raise RuntimeError(f"Failed to save dashboard ref after {_MAX_RETRIES} retries")
 
 
 def toggle_map(guild_id: str, slug: str) -> tuple[dict, bool]:
@@ -183,17 +200,37 @@ def toggle_map(guild_id: str, slug: str) -> tuple[dict, bool]:
 
     If this toggle marks the last remaining map, the cycle auto-resets.
     """
-    state = get_state(guild_id)
+    for _ in range(_MAX_RETRIES):
+        state = get_state(guild_id)
+        prev = state["updated_at"]
 
-    if slug in state["played"]:
-        return unmark_map(guild_id, slug), False
+        if slug in state["played"]:
+            state["played"].discard(slug)
+            state["played_order"] = [s for s in state["played_order"] if s != slug]
+            try:
+                _conditional_put(_prepare_item(state), prev)
+                return state, False
+            except ClientError as e:
+                if not _is_conflict(e):
+                    raise
+                continue
 
-    state_after = mark_played(guild_id, slug)
+        state["played"].add(slug)
+        state["played_order"].append(slug)
 
-    if len(state_after["played"]) >= len(MAP_SLUGS):
-        cycle_num = state_after["cycle_number"]
-        state_after = reset_cycle(guild_id)
-        state_after["_completed_cycle"] = cycle_num
-        return state_after, True
+        cycle_completed = len(state["played"]) >= len(MAP_SLUGS)
+        if cycle_completed:
+            completed_cycle = state["cycle_number"]
+            state["played"] = set()
+            state["played_order"] = []
+            state["cycle_number"] += 1
+            state["_completed_cycle"] = completed_cycle
 
-    return state_after, False
+        try:
+            _conditional_put(_prepare_item(state), prev)
+            return state, cycle_completed
+        except ClientError as e:
+            if not _is_conflict(e):
+                raise
+
+    return get_state(guild_id), False
