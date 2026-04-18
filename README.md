@@ -1,61 +1,142 @@
 # Discord Bot on AWS Lambda
 
-This repo is an example of how to run a Discord bot on AWS Lambda. It uses [Discord Interactions Endpoint](https://discord.com/developers/docs/interactions/application-commands).
+A serverless Discord bot running on AWS Lambda, built with Flask and deployed via AWS CDK. The bot currently provides two features:
 
-The app is built with [Flask](https://flask.palletsprojects.com/) to create a HTTP server.
-The server is hosted on AWS Lambda Docker Container using [AWS CDK](https://aws.amazon.com/cdk/).
+- **CS2 Map Rotation Tracker** -- Tracks which Active Duty maps a friend group has played each cycle, with a visual dashboard and slash commands.
+- **FiveM Player Watcher** -- Polls a FiveM server every minute and sends Discord notifications when a watched player joins or leaves.
 
-Once you've replaced updated all the tokens and keys, you can deploy the bot to AWS Lambda with the CDK. You'll then get an API endpoint like `https://xxxxx.execute-api.us-east-1.amazonaws.com/prod/`.
+Both features share a single Docker image deployed to Lambda, with separate entry points and DynamoDB tables.
 
-You can then update the Discord application's interactions endpoint to point to that URL on your [Discord Developer Portal](https://discord.com/developers/applications), and interact with the bot in your Discord server (after you've added it to the server).
+## Architecture
 
-### Registering the Commands
+```
+Discord ──> Lambda Function URL ──> main.handler (Flask)
+                                        ├── /dashboard, /played, /remaining, ...
+                                        └── DynamoDB (cs2-map-tracker)
 
-Before you can use the bot, you'll need to register the commands with Discord.
+EventBridge (every 1 min) ──> watcher.handler
+                                  ├── FiveM API poll
+                                  └── DynamoDB (watcher state)
+```
 
-Modify/update the `discord_commands.yaml` file to add your own commands. Also install the dependencies in `requirements.txt` if you haven't already.
+**Stack:** Python 3.11, Flask, Docker on Lambda, DynamoDB, CDK (TypeScript), Discord Interactions Endpoint.
+
+## CS2 Map Rotation
+
+The dashboard uses Discord Components V2 with a Container, Media Gallery for map thumbnails, and toggle buttons:
+
+| Command | Description |
+|---------|-------------|
+| `/dashboard` | Post the map rotation dashboard in the current channel |
+| `/played <map>` | Mark a map as played |
+| `/remaining` | Show maps not yet played this cycle (ephemeral) |
+| `/history` | Show maps played this cycle in order (ephemeral) |
+| `/undo` | Unmark the most recently played map |
+| `/unmark <map>` | Unmark a specific map |
+| `/reset` | Reset the current cycle (with confirmation) |
+
+Maps: Ancient, Anubis, Dust II, Inferno, Mirage, Nuke, Overpass.
+
+When all 7 maps have been played, the cycle auto-resets with a celebration message and the cycle counter increments.
+
+## Setup
+
+### Prerequisites
+
+- Node.js and npm
+- Python 3.11+
+- Docker
+- AWS CLI configured with credentials
+- A Discord application with a bot token
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```sh
+# Discord (required)
+DISCORD_PUBLIC_KEY=your_discord_public_key
+DISCORD_TOKEN=your_bot_token
+DISCORD_APPLICATION_ID=your_app_id
+
+# FiveM Watcher
+FIVEM_CFX_ID=your_cfx_id
+FIVEM_PLAYER_ID=your_player_id
+DISCORD_CHANNEL_ID=your_channel_id
+
+# Optional: guild-scoped command registration (instant updates during dev)
+DISCORD_GUILD_ID=your_guild_id
+```
+
+### Register Commands
+
+Install the registration script dependencies and run it:
 
 ```sh
 pip install -r commands/requirements.txt
-```
-
-Then update the API key and application ID in `register_commands.py` to match your own. Then run the `register_commands.py` script in the `commands` directory.
-
-```sh
 cd commands
 python register_commands.py
 ```
 
-### Testing Locally
+If `DISCORD_GUILD_ID` is set, commands register to that guild (instant). Otherwise they register globally (up to 1 hour propagation).
 
-Send a request to the Flask app this way. Put a sample request (which you can get by logging the JSON in Lambda). PUt it in `test_request.json`.
+Commands are defined in `commands/discord_commands.yaml`. The script uses a bulk `PUT` so stale commands are automatically removed.
 
-Start up the bot as a Flask app.
+### Deploy
+
+Bootstrap CDK if this is your first deploy to the account/region:
 
 ```sh
-python src/app/main.py
+npx cdk bootstrap
 ```
 
-Then send the request to the Flask app.
+Deploy the stack:
 
 ```sh
-curl -X POST -H "Content-Type: application/json" -d @test_request.json http://127.0.0.1:5000/
+BUILDX_NO_DEFAULT_ATTESTATIONS=1 npx cdk deploy
 ```
 
-But this won't work with the `@verify_key_decorator`, because the request won't have a token that works with the public key.
+The `BUILDX_NO_DEFAULT_ATTESTATIONS=1` flag ensures Docker builds a Lambda-compatible image manifest.
 
-So you'll need to comment out the decorator to test locally or update the example request with a valid token from your Lambda logs.
+After deploying, copy the `FunctionUrl` output and set it as the **Interactions Endpoint URL** in your [Discord Developer Portal](https://discord.com/developers/applications).
 
-### Deploying to AWS Lambda
+## Map Pool Configuration
 
-Bootstrap the CDK if you haven't already.
+The Active Duty map pool is defined in `src/config/maps.yaml`:
 
-```sh
-cdk bootstrap
+```yaml
+active_duty:
+  - slug: ancient
+    name: Ancient
+    thumb_url: https://...
 ```
 
-Then you can run this to deploy it (make sure your AWS CLI is set up first).
+To update the pool (e.g., when Valve rotates maps):
 
-```sh
-cdk deploy
+1. Edit `src/config/maps.yaml` (add/remove entries)
+2. Update the choices in `commands/discord_commands.yaml` to match
+3. Run `python commands/register_commands.py` to sync commands with Discord
+4. Run `npx cdk deploy` to redeploy the Lambda
+
+## Project Structure
+
+```
+├── bin/                        # CDK app entry point
+├── lib/
+│   └── discord-bot-lambda-stack.ts   # AWS infrastructure (Lambda, DynamoDB, EventBridge)
+├── commands/
+│   ├── discord_commands.yaml         # Slash command definitions
+│   └── register_commands.py          # Command registration script
+├── src/
+│   ├── Dockerfile                    # Lambda container image
+│   ├── requirements.txt              # Python dependencies
+│   ├── config/
+│   │   └── maps.yaml                 # CS2 map pool + thumbnail URLs
+│   └── app/
+│       ├── main.py                   # Discord interaction handler (Flask)
+│       ├── dashboard.py              # Components V2 dashboard builder
+│       ├── db.py                     # DynamoDB state management
+│       ├── config.py                 # Map pool config loader
+│       └── watcher.py               # FiveM player watcher
+└── .env                              # Secrets (not committed)
 ```
