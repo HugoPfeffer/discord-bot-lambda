@@ -5,7 +5,14 @@ import yaml
 
 TOKEN = os.environ.get("DISCORD_TOKEN")
 APPLICATION_ID = os.environ.get("DISCORD_APPLICATION_ID")
-URL = f"https://discord.com/api/v9/applications/{APPLICATION_ID}/commands"
+GUILD_ID = os.environ.get("DISCORD_GUILD_ID")
+
+if GUILD_ID:
+    URL = f"https://discord.com/api/v10/applications/{APPLICATION_ID}/guilds/{GUILD_ID}/commands"
+    print(f"Registering guild-scoped commands for guild {GUILD_ID}")
+else:
+    URL = f"https://discord.com/api/v10/applications/{APPLICATION_ID}/commands"
+    print("Registering global commands")
 
 
 with open("discord_commands.yaml", "r") as file:
@@ -14,8 +21,10 @@ with open("discord_commands.yaml", "r") as file:
 commands = yaml.safe_load(yaml_content)
 headers = {"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json"}
 
-# Send the POST request for each command
 for command in commands:
     response = requests.post(URL, json=command, headers=headers)
     command_name = command["name"]
-    print(f"Command {command_name} created: {response.status_code}")
+    if response.status_code in (200, 201):
+        print(f"  {command_name}: OK ({response.status_code})")
+    else:
+        print(f"  {command_name}: FAILED ({response.status_code}) {response.text}")

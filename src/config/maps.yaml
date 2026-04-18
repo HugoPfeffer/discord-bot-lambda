@@ -1,0 +1,15 @@
+active_duty:
+  - slug: ancient
+    name: Ancient
+  - slug: anubis
+    name: Anubis
+  - slug: dust2
+    name: Dust II
+  - slug: inferno
+    name: Inferno
+  - slug: mirage
+    name: Mirage
+  - slug: nuke
+    name: Nuke
+  - slug: overpass
+    name: Overpass

@@ -6,6 +6,9 @@ COPY requirements.txt ${LAMBDA_TASK_ROOT}
 # Install the specified packages
 RUN pip install -r requirements.txt
 
+# Copy map pool config
+COPY config/ ${LAMBDA_TASK_ROOT}/config/
+
 # Copy all files in ./app
 COPY app/ ${LAMBDA_TASK_ROOT}/
 

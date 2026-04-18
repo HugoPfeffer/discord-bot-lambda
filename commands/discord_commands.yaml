@@ -1,10 +1,67 @@
-- name: hello
-  description: Say hello!
+- name: dashboard
+  description: Post the map rotation dashboard in this channel
+  type: 1
 
-- name: echo
-  description: Echo message back to sender.
+- name: played
+  description: Mark a map as played
+  type: 1
   options:
-    - name: message
-      description: The message to echo back.
-      type: 3 # string
+    - name: map
+      description: The map to mark as played
+      type: 3
       required: true
+      choices:
+        - name: Ancient
+          value: ancient
+        - name: Anubis
+          value: anubis
+        - name: Dust II
+          value: dust2
+        - name: Inferno
+          value: inferno
+        - name: Mirage
+          value: mirage
+        - name: Nuke
+          value: nuke
+        - name: Overpass
+          value: overpass
+
+- name: remaining
+  description: Show maps not yet played this cycle
+  type: 1
+
+- name: history
+  description: Show maps played this cycle in order
+  type: 1
+
+- name: undo
+  description: Unmark the most recently played map
+  type: 1
+
+- name: unmark
+  description: Unmark a specific map
+  type: 1
+  options:
+    - name: map
+      description: The map to unmark
+      type: 3
+      required: true
+      choices:
+        - name: Ancient
+          value: ancient
+        - name: Anubis
+          value: anubis
+        - name: Dust II
+          value: dust2
+        - name: Inferno
+          value: inferno
+        - name: Mirage
+          value: mirage
+        - name: Nuke
+          value: nuke
+        - name: Overpass
+          value: overpass
+
+- name: reset
+  description: Reset the current cycle
+  type: 1

@@ -3,3 +3,5 @@ mangum
 asgiref
 discord-interactions
 requests
+boto3
+pyyaml

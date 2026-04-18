@@ -17,19 +17,37 @@ export class DiscordBotLambdaStack extends cdk.Stack {
       throw new Error("DISCORD_PUBLIC_KEY must be set in .env or environment");
     }
 
+    const discordBotToken = process.env.DISCORD_TOKEN;
+    if (!discordBotToken) {
+      throw new Error("DISCORD_TOKEN must be set in .env or environment");
+    }
+
+    const mapTrackerTable = new dynamodb.Table(this, "MapTrackerTable", {
+      partitionKey: {
+        name: "guild_id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
     const dockerFunction = new lambda.DockerImageFunction(
       this,
       "DockerFunction",
       {
         code: lambda.DockerImageCode.fromImageAsset("./src"),
-        memorySize: 1024,
+        memorySize: 512,
         timeout: cdk.Duration.seconds(10),
         architecture: lambda.Architecture.X86_64,
         environment: {
           DISCORD_PUBLIC_KEY: discordPublicKey,
+          DISCORD_BOT_TOKEN: discordBotToken,
+          MAP_TRACKER_TABLE_NAME: mapTrackerTable.tableName,
         },
       }
     );
+
+    mapTrackerTable.grantReadWriteData(dockerFunction);
 
     const functionUrl = dockerFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
