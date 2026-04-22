@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "${CONTEXT7_API_KEY}"
+      ]
+    },
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_URL": "${FIRECRAWL_LOCAL_API_URL}"
+      }
+    },
+    "kubernetes": {
+      "command": "npx",
+      "args": ["-y", "--read-only", "kubernetes-mcp-server@latest"]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      },
+      "miro-mcp": {
+        "url": "https://mcp.miro.com/",
+        "autoApprove": []
+      }
+    }
+  }
+}
