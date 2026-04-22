@@ -51,7 +51,7 @@ When all 7 maps have been played, the cycle auto-resets with a celebration messa
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Copy `lambda-bot/.env.example` to `lambda-bot/.env` and fill in real values (the CDK stack loads `.env` from `lambda-bot/` via `dotenv`):
 
 ```sh
 # Discord (required)
