@@ -10,6 +10,13 @@
     }
   },
   "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "moby": true
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -80,7 +87,8 @@
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -97,11 +105,19 @@
     "EDITOR": "${localEnv:EDITOR}",
     "VISUAL": "${localEnv:VISUAL}",
     "PLANNOTATOR_REMOTE": "1",
-    "PLANNOTATOR_PORT": "9999"
+    "PLANNOTATOR_PORT": "9999",
+    "AWS_PROFILE": "${localEnv:AWS_PROFILE}",
+    "AWS_REGION": "${localEnv:AWS_REGION}",
+    "AWS_DEFAULT_REGION": "${localEnv:AWS_DEFAULT_REGION}",
+    "AWS_ACCESS_KEY_ID": "${localEnv:AWS_ACCESS_KEY_ID}",
+    "AWS_SECRET_ACCESS_KEY": "${localEnv:AWS_SECRET_ACCESS_KEY}",
+    "AWS_SESSION_TOKEN": "${localEnv:AWS_SESSION_TOKEN}",
+    "BUILDX_NO_DEFAULT_ATTESTATIONS": "1"
   },
   "forwardPorts": [9999],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
+  "postCreateCommand": "bash -lc 'cd /workspace/lambda-bot && npm ci && pip install --user -r commands/requirements.txt'",
   // "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
-  "waitFor": "postStartCommand"
+  "waitFor": "postCreateCommand"
 }

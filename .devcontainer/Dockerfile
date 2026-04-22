@@ -141,6 +141,9 @@ RUN npm install -g @fission-ai/openspec@latest
 # Install OpenCode
 RUN npm install -g opencode-ai@latest
 
+# Install AWS CDK (convenience global; `npx cdk` from lambda-bot/ uses the project's pinned devDep)
+RUN npm install -g aws-cdk@latest
+
 # Install Spec-Kit
 RUN uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 
