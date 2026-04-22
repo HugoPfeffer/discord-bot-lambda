@@ -1,0 +1,319 @@
+name: spec-driven-custom
+version: 2
+description: >
+  Spec-driven development pipeline: elicit → research → propose → spec → design → task → apply.
+  Supports deep mode (full pipeline, strict gates) and discovery mode (lightweight, advisory gates).
+
+# Pipeline mode: deep | discovery
+# deep:      all phases, strict gates, full traceability
+# discovery: proposal + specs + apply only, advisory gates, lightweight format
+mode: deep
+
+# Per-phase quality gates
+# strict:   block progression until ALL criteria pass
+# advisory: report warnings, allow progression
+gates:
+  proposal: strict
+  research: advisory
+  specs: strict
+  design: advisory
+  tasks: strict
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Establish WHY this change is needed, WHAT capabilities it introduces, and what is out of scope
+    template: proposal.md
+    instruction: >
+      BEFORE writing the proposal, run the Socratic Elicitation Protocol from the system prompt.
+      Ask targeted questions to surface: actors, data lifecycle, error paths, auth requirements,
+      integrations, and non-functional requirements. Iterate until gaps are filled, then write.
+
+
+      Create a proposal document with these sections:
+
+
+      - **Why**: 1-2 sentences on the problem or opportunity. Active voice. Concrete.
+
+      - **What Changes**: Bullet list of changes. Mark breaking changes with **BREAKING**.
+
+      - **Non-Goals**: What this change explicitly does NOT do. This bounds scope and prevents
+        AI over-specification.
+
+      - **Capabilities**: Identify which specs will be created or modified. Assign CAP-* IDs.
+        - **New Capabilities**: `CAP-001: <name>` — each becomes specs/<name>/spec.md.
+          Use kebab-case names (e.g., user-auth, data-export).
+        - **Modified Capabilities**: `CAP-00N: <existing-name>` — spec-level behavior changes only.
+
+      - **Impact**: Affected code, APIs, dependencies, systems.
+
+      - **Mode**: deep | discovery (recommend based on complexity and domain familiarity).
+
+
+      GATE 1 CHECKLIST (self-validate before finishing):
+
+      - [ ] Every capability has a CAP-* identifier
+
+      - [ ] Non-Goals section is populated with at least one item
+
+      - [ ] Impact section names specific systems/files
+
+      - [ ] No vague terms: "appropriate", "sufficient", "reasonable", "etc."
+
+      - [ ] Why section uses active voice and is concrete
+
+      Keep it concise (1-2 pages). Focus on "why" not "how".
+    requires: []
+
+  - id: research
+    generates: research.md
+    description: >
+      Research findings from context7 and firecrawl that inform spec scenarios and design decisions.
+      Optional — skip when you have strong prior knowledge of the domain and stack.
+    template: research.md
+    instruction: >
+      Create a research document that resolves knowledge gaps identified in the proposal.
+
+
+      Process:
+
+      1. Parse the proposal for external dependencies (libraries, APIs, standards, patterns).
+
+      2. List each knowledge gap explicitly.
+
+      3. For each gap, spawn a research sub-agent (parallel where gaps are independent):
+         - Use context7 for official documentation
+         - Use firecrawl for broader patterns, articles, and production examples
+
+      4. Synthesize findings per gap. Always cite source URLs.
+
+      5. Extract constraints (library limitations, API quirks, version conflicts, perf budgets).
+
+      6. Write recommendations that feed directly into spec scenarios and design decisions.
+
+
+      CRITICAL: Label all findings as REFERENCE CONTEXT (existing state), not specification.
+      Agents must not confuse research notes with new requirements.
+
+
+      GATE (advisory) — flag but do not block if:
+
+      - Any knowledge gap has no findings (mark as "Unresolved — requires human input")
+
+      - Conflicting information found between sources (mark as "Conflict — requires resolution")
+    requires:
+      - proposal
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Unambiguous, testable requirements with GIVEN/WHEN/THEN scenarios and full traceability IDs
+    template: spec.md
+    instruction: >
+      Create one spec file per capability listed in proposal's Capabilities section.
+
+      Path: specs/<capability-name>/spec.md (use exact kebab-case name from proposal).
+
+
+      TRACEABILITY IDs — assign to every element:
+
+      - Requirements: REQ-<CAP-num>-<seq> (e.g., REQ-001-01)
+
+      - Scenarios: SCN-<CAP-num>-<REQ-seq>-<scenario-seq> (e.g., SCN-001-01-01)
+
+
+      REQUIREMENT FORMAT:
+
+        ### REQ-001-01: <Requirement Name>
+
+        <Description using SHALL/MUST. Active voice. One atomic requirement per section.>
+
+
+      SCENARIO FORMAT (use exactly 4 hashtags):
+
+        #### SCN-001-01-01: <Scenario Name>
+
+        - **GIVEN** <precondition or system state>
+
+        - **WHEN** <triggering action or event>
+
+        - **THEN** <measurable, observable outcome>
+
+
+      Delta operations for modified capabilities (## headers):
+
+      - **ADDED Requirements**: New capabilities
+
+      - **MODIFIED Requirements**: Changed behavior — include FULL updated content
+
+      - **REMOVED Requirements**: Deprecated features — include **Reason** and **Migration**
+
+      - **RENAMED Requirements**: Name changes only — use FROM:/TO: format
+
+
+      EDGE CASE CHECKLIST — for every requirement, consider:
+
+      - [ ] Error/invalid input path (what does the system do when input is wrong?)
+
+      - [ ] Authorization boundary (who can and cannot perform this action?)
+
+      - [ ] Concurrency / race condition (what if two actors act simultaneously?)
+
+      - [ ] Data boundary (empty, null, max-size, duplicate inputs)
+
+      - [ ] Failure recovery (what if downstream service fails?)
+
+
+      GATE 2 CHECKLIST (self-validate before finishing):
+
+      - [ ] Every CAP-* from proposal has at least one REQ-*
+
+      - [ ] Every REQ-* has at least one SCN-* (happy path + at least one error path)
+
+      - [ ] THEN clauses are measurable (no "should work", "displays correctly")
+
+      - [ ] No passive voice in requirements (SHALL, not "should be processed")
+
+      - [ ] Requirements use SHALL/MUST, never "should" or "may"
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: >
+      Technical architecture decisions with explicit rationale, alternatives considered, and open questions.
+      Create only when: cross-cutting change, new architectural pattern, external dependency,
+      significant data model change, security/performance/migration complexity.
+    template: design.md
+    instruction: >
+      Create the design document that explains HOW to implement the change.
+
+
+      TRACEABILITY IDs — assign to every decision:
+
+      - Decisions: DES-<seq> (e.g., DES-001)
+
+
+      SECTIONS:
+
+      - **Context**: Background, current state, constraints, stakeholders. Reference CAP-* IDs.
+
+      - **Goals / Non-Goals**:
+        - Goals: What this design achieves (link to REQ-* IDs)
+        - Non-Goals: What is explicitly excluded (repeat from proposal, add technical non-goals)
+
+      - **Decisions**: For each key technical choice:
+        ### DES-001: <Decision Title>
+        **Choice**: <what was decided>
+        **Rationale**: <why this over alternatives>
+        **Alternatives Considered**: <option A — rejected because...; option B — rejected because...>
+        **Consequences**: <what this decision enables and constrains>
+
+      - **Risks / Trade-offs**: [Risk] → Mitigation. Be specific.
+
+      - **Migration Plan**: Steps to deploy. Rollback strategy. (If no migration needed, state why.)
+
+      - **Open Questions**: Outstanding decisions. Each must be assigned to someone and have a deadline
+        before this gate can pass in strict mode.
+
+
+      GATE 3 CHECKLIST (self-validate before finishing):
+
+      - [ ] Every DES-* has alternatives considered
+
+      - [ ] Open Questions section is empty OR each question has an owner and deadline
+
+      - [ ] All REQ-* from specs are addressed in design (or noted as "no design needed")
+
+      - [ ] Risks have concrete mitigations, not just acknowledgments
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: >
+      Atomic, dependency-ordered work units with explicit DAG annotations for dynamic parallelization
+    template: tasks.md
+    instruction: >
+      Create the task list that breaks down implementation work into atomic, parallelizable units.
+
+
+      TRACEABILITY IDs — every task gets:
+
+      - TSK-<CAP-num>-<REQ-num>-<seq> (e.g., TSK-001-01-01)
+
+      - traces: [REQ-*] — which requirements this task implements
+
+      - depends_on: [TSK-*] — hard blockers (empty if no dependencies)
+
+
+      PARALLELIZATION:
+
+      - Mark tasks with no mutual dependencies with [P] — they can run in parallel.
+
+      - Organize ## sections as WAVES: tasks in the same wave execute simultaneously.
+
+      - Wave 0: tasks with no dependencies (always parallelizable)
+
+      - Wave N: tasks whose only dependencies are in waves < N
+
+      After listing all tasks, append a DAG SUMMARY:
+
+        ## Dependency Graph
+
+        Wave 0 [P]: TSK-001-01-01, TSK-001-02-01
+        Wave 1 [P]: TSK-001-01-02, TSK-001-03-01
+        Wave 2:     TSK-001-01-03 (depends on Wave 1)
+
+        Sub-agent allocation:
+        - Wave 0: 2 agents (one per task)
+        - Wave 1: 2 agents
+        - Wave 2: 1 agent (sequential, critical path)
+
+
+      TASK FORMAT:
+
+        - [ ] TSK-001-01-01 [P] <Task description> | traces: REQ-001-01 | depends_on: none
+
+
+      GUIDELINES:
+
+      - Each task: completable in 1-4 hours, verifiable (you know when it's done)
+
+      - One concern per task — no "implement X and Y and Z" in one checkbox
+
+      - Order within waves by logical sequence
+
+
+      GATE 4 CHECKLIST (self-validate before finishing):
+
+      - [ ] Every TSK-* traces to at least one REQ-*
+
+      - [ ] depends_on references form a valid DAG (no cycles — verify mentally or by listing waves)
+
+      - [ ] Wave summary is present and complete
+
+      - [ ] No task exceeds 4 hours in scope
+
+      - [ ] Every REQ-* from specs has at least one TSK-* implementing it
+    requires:
+      - specs
+      - design
+
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    Execute tasks wave by wave per the Dependency Graph in tasks.md.
+
+    For each wave:
+    1. Fan-out: spawn one sub-agent per [P]-marked task, each with isolated context.
+       Provide each sub-agent: relevant TSK-*, its traced REQ-*, relevant DES-*, existing code context.
+    2. Fan-in: collect results, verify no file conflicts between parallel agents.
+    3. Run tests for the completed wave before releasing the next wave.
+    4. Mark completed tasks with [x] in tasks.md.
+    5. Pause if a task is blocked or reveals new dependencies not in the original DAG.
+
+    Sequential tasks (no [P]): complete before moving to next.
+    After all waves: run drift detection — compare implemented behavior against spec scenarios.
+    Report any SCN-* scenarios not covered by tests.

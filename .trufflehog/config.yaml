@@ -1,0 +1,21 @@
+# TruffleHog configuration.
+# Schema reference: https://github.com/trufflesecurity/trufflehog#regex-detector-example
+#
+# This project intentionally has no exclude-paths file and no excluded built-in
+# detectors. Suppress false positives with an inline `trufflehog:ignore` comment
+# on the offending line, not by widening the exclusion surface.
+#
+# To add a custom detector for a project-specific credential format, append an
+# entry under `detectors:` like the commented example below.
+
+detectors: []
+
+# detectors:
+#   - name: ExampleInternalToken
+#     keywords:
+#       - example_internal_
+#     regex:
+#       token: 'example_internal_[A-Za-z0-9]{32}'
+#     entropy: 3.5
+#     exclude_words:
+#       - example_internal_placeholder

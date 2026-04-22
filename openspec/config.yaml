@@ -1,0 +1,71 @@
+schema: spec-driven-custom
+
+# Pipeline mode: deep | discovery
+# deep:      all phases (proposal → research → specs → design → tasks → apply)
+#            strict gates on proposal, specs, tasks; advisory on research, design
+# discovery: abbreviated (proposal → specs → apply), all gates advisory
+#            use for exploration, spikes, or when complexity is known to be low
+mode: deep
+
+# Per-phase quality gates: strict | advisory
+# strict:   progression blocked until ALL required criteria pass
+# advisory: warnings reported, progression allowed
+gates:
+  proposal: strict
+  research: advisory
+  specs: strict
+  design: advisory
+  tasks: strict
+
+# Research tool configuration
+# Tools are used during the research phase to fill knowledge gaps from the proposal.
+# parallel: true spawns one sub-agent per knowledge gap simultaneously
+research:
+  tools:
+    - context7    # official documentation lookup
+    - firecrawl   # web crawl for patterns, articles, production examples
+  parallel: true
+
+# Project context — shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# context: |
+#   Tech stack: TypeScript, React, Node.js
+#   Conventions: conventional commits, kebab-case file names
+#   Domain: <your domain here>
+
+# Per-artifact quality rules — injected into AI prompts during artifact generation.
+rules:
+  proposal:
+    - Every capability MUST have a CAP-* identifier (CAP-001, CAP-002, ...)
+    - Non-Goals section MUST contain at least one item
+    - Impact section MUST name specific files, APIs, or services — not "the system"
+    - Flag and revise any vague terms: "appropriate", "sufficient", "reasonable", "etc.", "as needed"
+    - Active voice throughout — no passive constructions
+  research:
+    - Label ALL findings as REFERENCE CONTEXT, not specification
+    - Every factual claim MUST cite a source URL
+    - Unresolved gaps MUST be marked "Unresolved — requires human input"
+    - Conflicting sources MUST be documented with both positions flagged for resolution
+  specs:
+    - Use GIVEN/WHEN/THEN format for all scenarios (not WHEN/THEN only)
+    - Every requirement MUST have a REQ-<CAP>-<seq> identifier
+    - Every scenario MUST have a SCN-<CAP>-<REQ>-<seq> identifier
+    - Requirements use SHALL or MUST — never "should", "may", or "will"
+    - Every requirement MUST have at least one happy-path scenario AND one error/edge-case scenario
+    - THEN clauses MUST be measurable — no "displays correctly", "works as expected", "handles gracefully"
+    - Address the edge case checklist for every requirement (error path, auth, concurrency, data boundary, recovery)
+  design:
+    - Every decision MUST have a DES-<seq> identifier
+    - Every decision MUST include at least two alternatives considered with rejection reasons
+    - Open Questions MUST list owner and deadline — or be empty
+    - Risks MUST have concrete mitigations, not acknowledgments
+    - All REQ-* from specs must be addressed or explicitly noted as "no design needed"
+  tasks:
+    - Every task MUST have a TSK-<CAP>-<REQ>-<seq> identifier
+    - Every task MUST declare traces: REQ-* (at least one requirement)
+    - Every task MUST declare depends_on: (TSK-* list or "none")
+    - Parallelizable tasks MUST be marked [P]
+    - Tasks MUST be organized into numbered waves based on dependency depth
+    - A Dependency Graph section MUST be present at the end of the file
+    - Each task MUST be completable in 1-4 hours — split larger tasks
+    - Every REQ-* from specs MUST have at least one TSK-* implementing it

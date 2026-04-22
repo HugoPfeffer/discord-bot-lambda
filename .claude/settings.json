@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {},
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "mcp__firecrawl-mcp__firecrawl_search",
+      "mcp__firecrawl-mcp__firecrawl_scrape",
+      "mcp__firecrawl-mcp__firecrawl_map",
+      "mcp__firecrawl-mcp__firecrawl_crawl",
+      "mcp__firecrawl-mcp__firecrawl_check_crawl_status",
+      "mcp__firecrawl-mcp__firecrawl_extract",
+      "mcp__firecrawl-mcp__firecrawl_agent",
+      "mcp__firecrawl-mcp__firecrawl_agent_status",
+      "mcp__firecrawl-mcp__firecrawl_browser_create",
+      "mcp__firecrawl-mcp__firecrawl_browser_execute",
+      "mcp__firecrawl-mcp__firecrawl_browser_delete",
+      "mcp__firecrawl-mcp__firecrawl_browser_list",
+      "Read:/workspace/**",
+      "Glob:/workspace/**",
+      "Grep:/workspace/**",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./.envrc)",
+      "Read:/workspace/.env",
+      "Read:/workspace/**/.env",
+      "Read:/workspace/.cursor/**",
+      "Read:/workspace/.opencode/**",
+      "Glob:/workspace/.cursor/**",
+      "Glob:/workspace/.opencode/**",
+      "Grep:/workspace/.env",
+      "Grep:/workspace/**/.env",
+      "Grep:/workspace/.cursor/**",
+      "Grep:/workspace/.opencode/**"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["context7", "firecrawl-mcp"],
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y @owloops/claude-powerline@latest --style=powerline --theme=tokyo-night"
+  },
+  "enabledPlugins": {
+    "code-simplifier@claude-plugins-official": false,
+    "claude-md-management@claude-plugins-official": false,
+    "agent-sdk-dev@claude-plugins-official": false,
+    "plugin-dev@claude-plugins-official": false,
+    "claude-code-setup@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": false,
+    "ralph-loop@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": false,
+    "typescript-lsp@claude-plugins-official": false,
+    "jdtls-lsp@claude-plugins-official": false,
+    "elements-of-style@superpowers-marketplace": false,
+    "episodic-memory@superpowers-marketplace": false,
+    "double-shot-latte@superpowers-marketplace": false,
+    "superpowers@superpowers-marketplace": false,
+    "commit-commands@claude-plugins-official": false,
+    "marksman-lsp@lsp-cc-servers": false,
+    "kubernetes-lsp@lsp-cc-servers": false,
+    "research-pipeline@lsp-cc-servers": false,
+    "linear@claude-plugins-official": false,
+    "plannotator@plannotator": true
+  },
+  "extraKnownMarketplaces": {
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "lsp-cc-servers": {
+      "source": {
+        "source": "github",
+        "repo": "HugoPfeffer/lsp-cc-servers"
+      }
+    },
+    "plannotator": {
+      "source": {
+        "source": "github",
+        "repo": "backnotprop/plannotator"
+      }
+    }
+  },
+  "plansDirectory": "/workspace/.claude/plans",
+  "defaultMode": "default"
+}
