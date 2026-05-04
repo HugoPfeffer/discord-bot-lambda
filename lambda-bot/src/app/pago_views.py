@@ -112,14 +112,14 @@ def pago_response(user_id: str, result: dict) -> dict:
 
     title    = "✅ Treino Registrado" if is_new_day else "🎯 Sessão Extra"
     subtitle = (
-        f"Operativo <@{user_id}> entrou em operação"
+        f"petisco <@{user_id}> pagou o que deve"
         if is_new_day
-        else f"<@{user_id}> · sessão #{today} de hoje"
+        else f"<@{user_id}> · pagou mais do que devia · #{today}"
     )
 
     stats_lines = [
         f"📅 **Dia:** {days}",
-        f"🎯 **Sessão total:** {total}",
+        f"🎯 **Acumulado:** {total}",
         f"🎖️ **Patente:** {_rank_tier(days)}",
     ]
     streak_line = _streak_label(streak)
@@ -143,8 +143,8 @@ def despago_response(user_id: str, result: dict) -> dict:
 
     inner = [
         _header(
-            "↩️ Operação Desfeita",
-            f"<@{user_id}> reverteu o registro de hoje",
+            "↩️ Despagou o que foi pago",
+            f"<@{user_id}> pagou menos do que devia",
         ),
         _divider(),
         {"type": 10, "content": (
@@ -165,11 +165,11 @@ def placar_response(rows: list[dict], ephemeral: bool = False) -> dict:
     if not rows:
         inner = [
             _header(
-                "🏆 Placar de Operativos",
-                "Ainda não há treinos registrados.",
+                "🏆 Placar de Pagos",
+                "Ainda não há pagos registrados, tem vagabundo devendo!",
             ),
             _divider(),
-            {"type": 10, "content": "Use **/pago** para entrar em operação."},
+            {"type": 10, "content": "Use **/pago** para pagar o que deve."},
         ]
         return _v2_response(
             _container(_ACCENT_NEUTRAL, inner),
@@ -191,8 +191,8 @@ def placar_response(rows: list[dict], ephemeral: bool = False) -> dict:
 
     inner = [
         _header(
-            "🏆 Placar de Operativos",
-            f"Top {len(rows)} · ranking por dias treinados",
+            "🏆 Placar de Pagos",
+            f"Top {len(rows)} · ranking por dias pagos",
         ),
         _divider(),
         {"type": 10, "content": "\n".join(lines)},
@@ -214,15 +214,15 @@ def meu_pago_response(item: dict, rank: int) -> dict:
 
     inner = [
         _header(
-            "📋 Seu Dossiê",
+            "📋 Seu pergaminho",
             f"Ranking **#{rank}** · {_rank_tier(days)}",
         ),
         _divider(),
         {"type": 10, "content": (
-            f"📅 **Dias treinados:** {days}\n"
+            f"📅 **Dias pagos:** {days}\n"
             f"🎯 **Sessões totais:** {total}\n"
             f"📆 **Sessões hoje:** {today}\n"
-            f"🗓️ **Último treino:** {last}\n"
+            f"🗓️ **Último pagou:** {last}\n"
             f"{streak_line}"
         )},
         _divider(),
@@ -237,11 +237,11 @@ def meu_pago_response(item: dict, rank: int) -> dict:
 def meu_pago_empty_response() -> dict:
     inner = [
         _header(
-            "📋 Seu Dossiê",
-            "Você ainda não tem treinos registrados.",
+            "📋 Seu pergaminho",
+            "Você ainda não tem pagos registrados.",
         ),
         _divider(),
-        {"type": 10, "content": "Use **/pago** para entrar em operação."},
+        {"type": 10, "content": "Use **/pago** para pagar o que deve."},
     ]
     return _v2_response(
         _container(_ACCENT_NEUTRAL, inner),
@@ -261,7 +261,7 @@ def pago_remove_response(user_id: str, removed: bool) -> dict:
 
     inner = [
         _header(
-            "🚫 Operativo Removido",
+            "🚫 Petisco removido",
             f"<@{user_id}> foi retirado do placar.",
         ),
     ]
