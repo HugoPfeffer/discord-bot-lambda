@@ -2,7 +2,6 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import * as logs from "aws-cdk-lib/aws-logs";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -73,22 +72,12 @@ export class DiscordBotLambdaStack extends cdk.Stack {
       value: functionUrl.url,
     });
 
-    // Import the auto-created Lambda log group by name instead of using
-    // dockerFunction.logGroup, which would trigger CDK's deprecated
-    // LogRetention helper (pinned to nodejs14.x in this CDK version).
-    const dockerLogGroup = logs.LogGroup.fromLogGroupName(
-      this,
-      "DockerFunctionLogGroup",
-      `/aws/lambda/${dockerFunction.functionName}`
-    );
-
-    new logs.MetricFilter(this, "PagoConditionalCheckFailedFilter", {
-      logGroup: dockerLogGroup,
-      metricNamespace: "DiscordBot/Pago",
-      metricName: "ConditionalCheckFailedException",
-      filterPattern: logs.FilterPattern.literal('"ConditionalCheckFailedException"'),
-      metricValue: "1",
-      defaultValue: 0,
-    });
+    // NOTE: A CloudWatch MetricFilter on the Lambda's log group (counting
+    // ConditionalCheckFailedException) was specified in the original plan
+    // but couldn't be created at deploy time — the Lambda's log group is
+    // created lazily on first invocation, so the filter has nothing to
+    // attach to during initial deploy. Add it manually after first invoke,
+    // or in a follow-up PR once we upgrade CDK and can use the L2 Function
+    // logGroup property to materialize it eagerly.
   }
 }
