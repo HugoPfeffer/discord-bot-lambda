@@ -9,6 +9,7 @@ from asgiref.wsgi import WsgiToAsgi
 from discord_interactions import verify_key_decorator
 
 import db
+import pago
 from config import SLUG_TO_NAME, MAP_SLUGS
 from dashboard import build_dashboard_components, dashboard_response, IS_COMPONENTS_V2
 
@@ -172,6 +173,81 @@ def _cmd_reset(interaction: dict) -> dict:
     }
 
 
+def _cmd_pago(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    user = interaction["member"]["user"]
+    user_id = user["id"]
+    username = user.get("global_name") or user["username"]
+    result = pago.record_pago(guild_id, user_id, username)
+    _log("pago", interaction,
+         days=result["days_count"], total=result["total_pagos"],
+         streak=result["streak"], is_new_day=result["is_new_day"])
+    streak = int(result["streak"])
+    streak_suffix = f" \U0001f525 {streak}d" if streak >= 2 else ""
+    return _public_message(
+        f"✅ <@{user_id}> marcou treino — dia {result['days_count']}, "
+        f"sessão {result['total_pagos']} no total.{streak_suffix}"
+    )
+
+
+def _cmd_despago(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    user = interaction["member"]["user"]
+    user_id = user["id"]
+    result = pago.undo_pago(guild_id, user_id)
+    _log("despago", interaction, undone=result is not None)
+    if result is None:
+        return _ephemeral("Nada para desfazer hoje.")
+    return _public_message(
+        f"↩️ <@{user_id}> desfez um /pago — "
+        f"agora {result['days_count']} dias, {result['total_pagos']} sessões."
+    )
+
+
+def _cmd_placar(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    rows = pago.get_leaderboard(guild_id, limit=10)
+    _log("placar", interaction, count=len(rows))
+    if not rows:
+        return _public_message(
+            "Ainda não há treinos registrados. Use /pago para começar!"
+        )
+    lines = [
+        f"{i+1}. <@{r['user_id']}> — {r['days_count']} dias ({r['total_pagos']} sessões)"
+        for i, r in enumerate(rows)
+    ]
+    return _public_message("\U0001f3c6 **Placar de Treino**\n" + "\n".join(lines))
+
+
+def _cmd_meu_pago(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    user = interaction["member"]["user"]
+    user_id = user["id"]
+    item, rank = pago.get_user_rank(guild_id, user_id)
+    _log("meu_pago", interaction, rank=rank)
+    if item is None:
+        return _ephemeral("Você ainda não tem treinos registrados. Use /pago!")
+    streak = int(item.get("streak", 0))
+    streak_line = f"\n\U0001f525 Streak: {streak} dias" if streak >= 2 else ""
+    return _ephemeral(
+        f"**Sua posição:** #{rank}\n"
+        f"Dias: {item['days_count']} · Sessões: {item['total_pagos']}"
+        f"{streak_line}"
+    )
+
+
+def _cmd_pago_remove(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    # Discord enforces the ADMINISTRATOR permission via default_member_permissions
+    # on the command itself; no in-code permission check needed.
+    target_user_id = interaction["data"]["options"][0]["value"]
+    removed = pago.remove_user(guild_id, target_user_id)
+    _log("pago_remove", interaction, target=target_user_id, removed=removed)
+    if not removed:
+        return _ephemeral(f"<@{target_user_id}> não estava no placar.")
+    return _ephemeral(f"<@{target_user_id}> removido do placar.")
+
+
 _COMMAND_HANDLERS = {
     "dashboard": _cmd_dashboard,
     "played": _cmd_played,
@@ -180,6 +256,11 @@ _COMMAND_HANDLERS = {
     "undo": _cmd_undo,
     "unmark": _cmd_unmark,
     "reset": _cmd_reset,
+    "pago": _cmd_pago,
+    "despago": _cmd_despago,
+    "placar": _cmd_placar,
+    "meu-pago": _cmd_meu_pago,
+    "pago-remove": _cmd_pago_remove,
 }
 
 

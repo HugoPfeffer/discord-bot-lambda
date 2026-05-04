@@ -2,14 +2,16 @@
 !jest.config.js
 *.d.ts
 node_modules
-.env
 .cursor
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # CDK asset staging directory
 .cdk.staging
 cdk.out
-
 
 .env*
 !.env.example

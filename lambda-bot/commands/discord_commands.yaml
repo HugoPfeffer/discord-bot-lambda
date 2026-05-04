@@ -65,3 +65,34 @@
 - name: reset
   description: Reset the current cycle
   type: 1
+
+- name: pago
+  description: Marca presença no treino de hoje
+  type: 1
+  dm_permission: false
+
+- name: despago
+  description: Desfaz o /pago de hoje (mesmo dia apenas)
+  type: 1
+  dm_permission: false
+
+- name: placar
+  description: Mostra o ranking de treinos
+  type: 1
+  dm_permission: false
+
+- name: meu-pago
+  description: Mostra sua posição no placar (visível só para você)
+  type: 1
+  dm_permission: false
+
+- name: pago-remove
+  description: (Admin) Remove um usuário do placar
+  type: 1
+  default_member_permissions: "8"
+  dm_permission: false
+  options:
+    - name: user
+      description: Usuário a remover
+      type: 6
+      required: true
