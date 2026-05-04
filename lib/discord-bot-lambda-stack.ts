@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -24,6 +25,14 @@ export class DiscordBotLambdaStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    const pagoLeaderboardTable = new dynamodb.Table(this, "PagoLeaderboardTable", {
+      tableName: "pago-leaderboard",
+      partitionKey: { name: "guild_id", type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: "user_id",  type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
     const dockerFunction = new lambda.DockerImageFunction(
       this,
       "DockerFunction",
@@ -35,11 +44,13 @@ export class DiscordBotLambdaStack extends cdk.Stack {
         environment: {
           DISCORD_PUBLIC_KEY: discordPublicKey,
           MAP_TRACKER_TABLE_NAME: mapTrackerTable.tableName,
+          PAGO_TABLE_NAME: pagoLeaderboardTable.tableName,
         },
       }
     );
 
     mapTrackerTable.grantReadWriteData(dockerFunction);
+    pagoLeaderboardTable.grantReadWriteData(dockerFunction);
 
     const functionUrl = dockerFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
@@ -60,6 +71,15 @@ export class DiscordBotLambdaStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, "FunctionUrl", {
       value: functionUrl.url,
+    });
+
+    new logs.MetricFilter(this, "PagoConditionalCheckFailedFilter", {
+      logGroup: dockerFunction.logGroup,
+      metricNamespace: "DiscordBot/Pago",
+      metricName: "ConditionalCheckFailedException",
+      filterPattern: logs.FilterPattern.literal('"ConditionalCheckFailedException"'),
+      metricValue: "1",
+      defaultValue: 0,
     });
   }
 }
