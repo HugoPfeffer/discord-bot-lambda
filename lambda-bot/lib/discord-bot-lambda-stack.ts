@@ -73,8 +73,17 @@ export class DiscordBotLambdaStack extends cdk.Stack {
       value: functionUrl.url,
     });
 
+    // Import the auto-created Lambda log group by name instead of using
+    // dockerFunction.logGroup, which would trigger CDK's deprecated
+    // LogRetention helper (pinned to nodejs14.x in this CDK version).
+    const dockerLogGroup = logs.LogGroup.fromLogGroupName(
+      this,
+      "DockerFunctionLogGroup",
+      `/aws/lambda/${dockerFunction.functionName}`
+    );
+
     new logs.MetricFilter(this, "PagoConditionalCheckFailedFilter", {
-      logGroup: dockerFunction.logGroup,
+      logGroup: dockerLogGroup,
       metricNamespace: "DiscordBot/Pago",
       metricName: "ConditionalCheckFailedException",
       filterPattern: logs.FilterPattern.literal('"ConditionalCheckFailedException"'),
