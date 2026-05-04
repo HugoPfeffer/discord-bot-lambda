@@ -10,6 +10,7 @@ from discord_interactions import verify_key_decorator
 
 import db
 import pago
+import pago_views
 from config import SLUG_TO_NAME, MAP_SLUGS
 from dashboard import build_dashboard_components, dashboard_response, IS_COMPONENTS_V2
 
@@ -182,12 +183,7 @@ def _cmd_pago(interaction: dict) -> dict:
     _log("pago", interaction,
          days=result["days_count"], total=result["total_pagos"],
          streak=result["streak"], is_new_day=result["is_new_day"])
-    streak = int(result["streak"])
-    streak_suffix = f" \U0001f525 {streak}d" if streak >= 2 else ""
-    return _public_message(
-        f"✅ <@{user_id}> marcou treino — dia {result['days_count']}, "
-        f"sessão {result['total_pagos']} no total.{streak_suffix}"
-    )
+    return pago_views.pago_response(user_id, result)
 
 
 def _cmd_despago(interaction: dict) -> dict:
@@ -197,26 +193,15 @@ def _cmd_despago(interaction: dict) -> dict:
     result = pago.undo_pago(guild_id, user_id)
     _log("despago", interaction, undone=result is not None)
     if result is None:
-        return _ephemeral("Nada para desfazer hoje.")
-    return _public_message(
-        f"↩️ <@{user_id}> desfez um /pago — "
-        f"agora {result['days_count']} dias, {result['total_pagos']} sessões."
-    )
+        return pago_views.despago_empty_response()
+    return pago_views.despago_response(user_id, result)
 
 
 def _cmd_placar(interaction: dict) -> dict:
     guild_id = interaction["guild_id"]
     rows = pago.get_leaderboard(guild_id, limit=10)
     _log("placar", interaction, count=len(rows))
-    if not rows:
-        return _public_message(
-            "Ainda não há treinos registrados. Use /pago para começar!"
-        )
-    lines = [
-        f"{i+1}. <@{r['user_id']}> — {r['days_count']} dias ({r['total_pagos']} sessões)"
-        for i, r in enumerate(rows)
-    ]
-    return _public_message("\U0001f3c6 **Placar de Treino**\n" + "\n".join(lines))
+    return pago_views.placar_response(rows)
 
 
 def _cmd_meu_pago(interaction: dict) -> dict:
@@ -226,14 +211,8 @@ def _cmd_meu_pago(interaction: dict) -> dict:
     item, rank = pago.get_user_rank(guild_id, user_id)
     _log("meu_pago", interaction, rank=rank)
     if item is None:
-        return _ephemeral("Você ainda não tem treinos registrados. Use /pago!")
-    streak = int(item.get("streak", 0))
-    streak_line = f"\n\U0001f525 Streak: {streak} dias" if streak >= 2 else ""
-    return _ephemeral(
-        f"**Sua posição:** #{rank}\n"
-        f"Dias: {item['days_count']} · Sessões: {item['total_pagos']}"
-        f"{streak_line}"
-    )
+        return pago_views.meu_pago_empty_response()
+    return pago_views.meu_pago_response(item, rank)
 
 
 def _cmd_pago_remove(interaction: dict) -> dict:
@@ -243,9 +222,7 @@ def _cmd_pago_remove(interaction: dict) -> dict:
     target_user_id = interaction["data"]["options"][0]["value"]
     removed = pago.remove_user(guild_id, target_user_id)
     _log("pago_remove", interaction, target=target_user_id, removed=removed)
-    if not removed:
-        return _ephemeral(f"<@{target_user_id}> não estava no placar.")
-    return _ephemeral(f"<@{target_user_id}> removido do placar.")
+    return pago_views.pago_remove_response(target_user_id, removed)
 
 
 _COMMAND_HANDLERS = {
@@ -313,6 +290,13 @@ def _handle_reset_confirm(interaction: dict, action: str) -> dict:
     }
 
 
+def _handle_pago_show_placar(interaction: dict) -> dict:
+    guild_id = interaction["guild_id"]
+    rows = pago.get_leaderboard(guild_id, limit=10)
+    _log("placar_button", interaction, count=len(rows))
+    return pago_views.placar_response(rows, ephemeral=True)
+
+
 def _route_component(interaction: dict) -> dict:
     custom_id = interaction["data"]["custom_id"]
 
@@ -324,6 +308,9 @@ def _route_component(interaction: dict) -> dict:
     if custom_id.startswith("reset_confirm:"):
         action = custom_id.split(":", 1)[1]
         return _handle_reset_confirm(interaction, action)
+
+    if custom_id == "pago:show_placar":
+        return _handle_pago_show_placar(interaction)
 
     return _ephemeral("Unknown interaction.")
 
