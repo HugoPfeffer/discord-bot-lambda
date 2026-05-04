@@ -29,7 +29,7 @@ logger.addHandler(_handler)
 
 app = Flask(__name__)
 asgi_app = WsgiToAsgi(app)
-handler = Mangum(asgi_app)
+handler = Mangum(asgi_app, lifespan="off")
 
 
 def _log(action: str, interaction: dict, **extra):
