@@ -32,14 +32,21 @@ def test_concurrent_pagos_same_user():
     import pago
     importlib.reload(pago)
 
+    errors: list[BaseException] = []
+
     def _hit():
-        pago.record_pago("g1", "u1", "alice")
+        try:
+            pago.record_pago("g1", "u1", "alice")
+        except BaseException as e:
+            errors.append(e)
 
     threads = [threading.Thread(target=_hit) for _ in range(20)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+
+    assert errors == [], f"threads raised: {errors!r}"
 
     table = boto3.resource("dynamodb").Table("pago-leaderboard-test")
     item = table.get_item(Key={"guild_id": "g1", "user_id": "u1"})["Item"]

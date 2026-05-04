@@ -14,7 +14,6 @@ _table = _dynamodb.Table(_TABLE_NAME)
 _MAX_RETRIES = 3   # higher than db.py's 2; same-user spam is realistic
 
 logger = logging.getLogger("pago")
-logger.setLevel(logging.INFO)
 
 
 def _today_utc() -> str:
@@ -94,7 +93,7 @@ def record_pago(guild_id: str, user_id: str, username: str) -> dict:
         except ClientError as e:
             if not _is_conflict(e):
                 raise
-            _log_conflict("record_pago", guild_id, user_id, attempt)
+            _log_conflict("record_pago", guild_id, user_id, attempt + 1)
 
     raise RuntimeError(f"record_pago failed for {guild_id}/{user_id} after {_MAX_RETRIES} retries")
 
@@ -114,6 +113,8 @@ def undo_pago(guild_id: str, user_id: str) -> dict | None:
 
         if new_today == 0:
             new_days       = max(0, int(prev["days_count"]) - 1)
+            # Streak rollback is intentionally lossy: we cannot reconstruct the prior
+            # streak without storing history. See plan Gotchas section.
             new_streak     = max(0, int(prev.get("streak", 0)) - 1)
             last_pago_date = None
         else:
@@ -143,7 +144,7 @@ def undo_pago(guild_id: str, user_id: str) -> dict | None:
         except ClientError as e:
             if not _is_conflict(e):
                 raise
-            _log_conflict("undo_pago", guild_id, user_id, attempt)
+            _log_conflict("undo_pago", guild_id, user_id, attempt + 1)
 
     raise RuntimeError(f"undo_pago failed for {guild_id}/{user_id} after {_MAX_RETRIES} retries")
 
@@ -187,6 +188,7 @@ def get_leaderboard(guild_id: str, limit: int = 10) -> list[dict]:
 
 
 def get_user_rank(guild_id: str, user_id: str) -> tuple[dict | None, int | None]:
+    # Fetches all rows to compute rank — acceptable at Discord-guild scale (<100 trainers).
     rows = get_leaderboard(guild_id, limit=10**9)
     for i, r in enumerate(rows):
         if r["user_id"] == user_id:
