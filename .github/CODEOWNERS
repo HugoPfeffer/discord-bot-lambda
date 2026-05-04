@@ -1,0 +1,5 @@
+.github/workflows/      @HugoPfeffer
+.github/dependabot.yml  @HugoPfeffer
+.github/CODEOWNERS      @HugoPfeffer
+.trufflehog/            @HugoPfeffer
+.pre-commit-config.yaml @HugoPfeffer

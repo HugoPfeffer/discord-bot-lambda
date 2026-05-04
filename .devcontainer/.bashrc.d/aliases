@@ -1,0 +1,14 @@
+#==============================================================================
+# Custom Aliases
+#==============================================================================
+alias vim=nvim
+alias ls='ls --color=auto'
+alias ll='ls -l'
+alias la='ls -la'
+alias gen-guid='echo $(uuidgen | cut -d - -f 2 | tr '[:upper:]' '[:lower:]')'
+alias bashrc-open='cursor ~/.bashrc'
+alias bashrc-source='source ~/.bashrc'
+
+alias specify='uvx --from git+https://github.com/github/spec-kit.git specify'
+alias claude='claude --allow-dangerously-skip-permissions'
+alias cc-custom='claude --allow-dangerously-skip-permissions --system-prompt "$CLAUDE_SYSTEM_PROMPT"'

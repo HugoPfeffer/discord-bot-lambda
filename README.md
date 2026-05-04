@@ -67,7 +67,7 @@ Per-guild leaderboard for the daily 200-frag deathmatch routine. Trust-based —
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Copy `lambda-bot/.env.example` to `lambda-bot/.env` and fill in real values (the CDK stack loads `.env` from `lambda-bot/` via `dotenv`):
 
 ```sh
 # Discord (required)

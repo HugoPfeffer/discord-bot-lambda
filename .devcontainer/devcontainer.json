@@ -1,0 +1,123 @@
+{
+  "name": "Claude Code Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Sao_Paulo}",
+      "CLAUDE_CODE_VERSION": "latest",
+      "GIT_DELTA_VERSION": "0.18.2",
+      "STARSHIP_VERSION": "1.21.1"
+    }
+  },
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "moby": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "anysphere.remote-containers",
+        "anysphere.remote-ssh",
+        "anysphere.cursorpyright",
+        "anysphere.cursor-lsp-profiler",
+        "redhat.vscode-yaml",
+        "redhat.vscode-xml",
+        "redhat.vscode-openshift-connector",
+        "redhat.vscode-apache-camel",
+        "redhat.vscode-debug-adapter-apache-camel",
+        "redhat.vscode-camelk",
+        "redhat.vscode-server-connector",
+        "jeff-hykin.xd-theme",
+        "DavidAnson.vscode-markdownlint",
+        "vscjava.vscode-java-pack",
+        "ritwickdey.LiveServer",
+        "GitHub.vscode-github-actions",
+        "breaking-brake.cc-wf-studio"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          }
+        },
+        "scm.alwaysShowActions": false,
+        "scm.alwaysShowRepositories": true,
+        "workbench.colorCustomizations": {},
+        "window.commandCenter": 1,
+        "workbench.editorAssociations": {
+          "*.rule": "customFileEditor",
+          "*.mdc": "customFileEditor",
+          "*.md": "customFileEditor"
+        },
+        "cursor.composer.shouldChimeAfterChatFinishes": true,
+        "cursor.composer.shouldAllowCustomModes": true,
+        "C_Cpp_Runner.cCompilerPath": "/usr/bin/x86_64-w64-mingw32-g++",
+        "editor.minimap.enabled": true,
+        "workbench.activityBar.orientation": "vertical",
+        "cursorStats.showProgressBars": true,
+        "cursorStats.currency": "USD",
+        "remote.SSH.remotePlatform": {},
+        "workbench.colorTheme": "XD Theme",
+        "hexeditor.columnWidth": 16,
+        "hexeditor.showDecodedText": true,
+        "hexeditor.defaultEndianness": "little",
+        "hexeditor.inspectorType": "aside",
+        "geminicodeassist.project": "advance-dreamlet-170k4",
+        "claude-code.extraArgs": ["--dangerously-skip-permissions"],
+        "claudeCode.selectedModel": "opus",
+        "claudeCode.environmentVariables": []
+      }
+    }
+  },
+  "remoteUser": "node",
+  "mounts": [
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "ANTHROPIC_MODEL": "opus",
+    "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
+    "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}",
+    "FIRECRAWL_LOCAL_API_URL": "${localEnv:FIRECRAWL_LOCAL_API_URL}",
+    "GIT_AUTHOR_NAME": "${localEnv:GIT_AUTHOR_NAME}",
+    "GIT_AUTHOR_EMAIL": "${localEnv:GIT_AUTHOR_EMAIL}",
+    "GIT_COMMITTER_NAME": "${localEnv:GIT_COMMITTER_NAME}",
+    "GIT_COMMITTER_EMAIL": "${localEnv:GIT_COMMITTER_EMAIL}",
+    "EDITOR": "${localEnv:EDITOR}",
+    "VISUAL": "${localEnv:VISUAL}",
+    "PLANNOTATOR_REMOTE": "1",
+    "PLANNOTATOR_PORT": "9999",
+    "AWS_PROFILE": "${localEnv:AWS_PROFILE}",
+    "AWS_REGION": "${localEnv:AWS_REGION}",
+    "AWS_DEFAULT_REGION": "${localEnv:AWS_DEFAULT_REGION}",
+    "AWS_ACCESS_KEY_ID": "${localEnv:AWS_ACCESS_KEY_ID}",
+    "AWS_SECRET_ACCESS_KEY": "${localEnv:AWS_SECRET_ACCESS_KEY}",
+    "AWS_SESSION_TOKEN": "${localEnv:AWS_SESSION_TOKEN}",
+    "BUILDX_NO_DEFAULT_ATTESTATIONS": "1"
+  },
+  "forwardPorts": [9999],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "bash -lc 'cd /workspace/lambda-bot && npm ci && pip install --user -r commands/requirements.txt'",
+  // "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postCreateCommand"
+}
